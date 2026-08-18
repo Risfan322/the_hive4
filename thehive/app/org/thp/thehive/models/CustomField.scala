@@ -72,14 +72,15 @@ class CustomFieldValueEdge(edge: Edge) extends CustomFieldValue[CustomFieldValue
 }
 
 object CustomFieldType extends Enumeration {
-  val string, integer, float, boolean, date = Value
+  val string, integer, float, boolean, date, url = Value
 
   val map: Map[Value, CustomFieldType[_]] = Map(
     string  -> CustomFieldString,
     integer -> CustomFieldInteger,
     float   -> CustomFieldFloat,
     boolean -> CustomFieldBoolean,
-    date    -> CustomFieldDate
+    date    -> CustomFieldDate,
+    url     -> CustomFieldUrl
   )
   def get(name: String): CustomFieldType[_] = map(this.withName(name))
 }
@@ -109,6 +110,27 @@ sealed abstract class CustomFieldType[T] {
 
 object CustomFieldString extends CustomFieldType[String] {
   override val name: String           = "string"
+  override val writes: Writes[String] = Writes.StringWrites
+
+  override def setValue[C <: CustomFieldValue[C]](customFieldValue: C, value: Option[Any]): Try[C] =
+    value.getOrElse(JsNull) match {
+      case v: String     => Success(customFieldValue.stringValue = Some(v))
+      case JsString(v)   => Success(customFieldValue.stringValue = Some(v))
+      case JsNull | null => Success(customFieldValue.stringValue = None)
+      case obj: JsObject =>
+        val stringValue = (obj \ "string").asOpt[String]
+        val order       = (obj \ "order").asOpt[Int]
+        Success((customFieldValue.stringValue = stringValue).order = order)
+      case _ => setValueFailure(value)
+    }
+
+  override def getValue(ccf: CustomFieldValue[_]): Option[String] = ccf.stringValue
+
+  override def getValue[C <: CustomFieldValue[_]](traversal: E[C]): Traversal.Domain[String] = traversal.value(_.stringValue).castDomain
+}
+
+object CustomFieldUrl extends CustomFieldType[String] {
+  override val name: String           = "url"
   override val writes: Writes[String] = Writes.StringWrites
 
   override def setValue[C <: CustomFieldValue[C]](customFieldValue: C, value: Option[Any]): Try[C] =

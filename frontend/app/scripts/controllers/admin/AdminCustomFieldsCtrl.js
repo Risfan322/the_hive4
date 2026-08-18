@@ -6,7 +6,7 @@
             var self = this;
 
             self.reference = {
-                types: ['string', 'number', 'boolean', 'date']
+                types: ['string', 'number', 'boolean', 'date', 'url']
             };
 
             self.state = {
